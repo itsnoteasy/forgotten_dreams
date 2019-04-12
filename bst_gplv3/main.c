@@ -52,16 +52,16 @@
 
 
 #define DEBOUNCE_TIME 216 // debounce time in units of 125us. only affects release latency. 32 * 125 = 4 milliseconds, 216*125=27ms
-//#define HARDEB  // hardware debouncing, disable MENU to avoid pin conflicts. pins can be randomly assigned from port F and D
+#define HARDEB  // hardware debouncing, disable MENU to avoid pin conflicts. pins can be randomly assigned from port F and D
 //#define MIX   // allow a mix of 3 pin hardware and 2 pin software debounced switches. must be defined when HARDEB is defined
 #define MENU  // disable this with HARDEB enabled to avoid pin conflicts, or change the conflicting pins.
-//#define INVERTX // to use a sensor rotated 180 degrees, invert both axes.
-//#define INVERTY // Y axis inversion, for games that dont support it.
+#define INVERTX // to use a sensor rotated 180 degrees, invert both axes.
+#define INVERTY // Y axis inversion, for games that dont support it.
 //#define INVERTWHL // wheel turns the wrong way.
 #define WHLBUX  // ben buxtons rotary encoder code
 #define WHLACC  //have to use WHLBUX and WHLACC together, not compatible with older wheel code.
 //#define RGB   // the classic intellimouse code from youtube, dont use with HARDEB enabled unless you fix pin conflicts.
-
+//#define DIAGONAL // mlt04 emulation, halves polling rate
 
 #define delay_us(t) __builtin_avr_delay_cycles((t) * (F_CPU/1000000))
 #define delay_ms(t) __builtin_avr_delay_cycles((t) * (F_CPU/1000))
@@ -115,6 +115,11 @@ union motion_data {
     uint8_t lo, hi;
   };
 };
+#ifdef DIAGONAL
+unsigned long xlohi = 0;
+unsigned long ylohi = 0;
+int8_t count = 1;
+#endif
 
 static void pins_init(void)
 {
@@ -189,8 +194,6 @@ static inline uint8_t spi_read(const uint8_t addr)
   return data;
 }
 
-// dpi argument is what's written to register 0x0f
-// actual dpi value = (dpi + 1) * 100
 static void pmw3360_init(const uint8_t dpi)
 {
   const uint8_t *psrom = srom;
@@ -356,9 +359,12 @@ int main(void)
   uint8_t profile = 1; //generates compiler warning unless rgb is enabled
 
 #endif
+
+// dpi argument is what's written to register 0x0f
+// actual dpi value = (dpi + 1) * 100
   // dpi settings
   uint8_t dpi_index = 1;
-  uint8_t dpis[] = {3, 7, 15};
+  uint8_t dpis[] = {21, 21, 21};
 
   // Profile switching when mouse is plugged in
   delay_ms(50);
@@ -620,22 +626,22 @@ int main(void)
         #endif
         #ifdef WHLACC
                 if (whl_time < 15) {
-				rev = 15 - whl_time;
-	        	rev = (rev>>2) + 4;
-					if(stack <= 0){ 
-	        		stack = stack - rev;
-					}
-					if(stack > 0){ 
-	        		stack = stack + rev;
-					}
-				}
-				else if ((whl_time < 127) && (whl_time > 14)){
-				stack--;
-				_rev = whl_time;				
-				}else{
-				stack--;				
-				}
-			    whl_time = 0;
+        rev = 15 - whl_time;
+            rev = (rev>>2) + 4;
+          if(stack <= 0){ 
+              stack = stack - rev;
+          }
+          if(stack > 0){ 
+              stack = stack + rev;
+          }
+        }
+        else if ((whl_time < 127) && (whl_time > 14)){
+        stack--;
+        _rev = whl_time;        
+        }else{
+        stack--;        
+        }
+          whl_time = 0;
         #endif
         }
 
@@ -644,23 +650,23 @@ int main(void)
           _whl = 1;
         #endif
         #ifdef WHLACC
-				if (whl_time < 15) {
-				rev = 15 - whl_time;
-	        	rev = (rev>>2) + 4;
-					if(stack < 0){ 
-	        		stack = stack - rev;
-					}
-					if(stack >= 0){ 
-	        		stack = stack + rev;
-					}
-				}
-				else if ((whl_time < 127) && (whl_time > 14)){
-				stack++;
-				_rev = whl_time;				
-				}else{
-				stack++;				
-				}
-			    whl_time = 0;
+        if (whl_time < 15) {
+        rev = 15 - whl_time;
+            rev = (rev>>2) + 4;
+          if(stack < 0){ 
+              stack = stack - rev;
+          }
+          if(stack >= 0){ 
+              stack = stack + rev;
+          }
+        }
+        else if ((whl_time < 127) && (whl_time > 14)){
+        stack++;
+        _rev = whl_time;        
+        }else{
+        stack++;        
+        }
+          whl_time = 0;
         }
       }
 
@@ -903,13 +909,35 @@ int main(void)
 #endif
         // only load bank with data if there's something worth transmitting
         if ((btn_usb != btn_usb_prev) || x.all || y.all || whl) {
-          UEDATX = btn_usb;
-          UEDATX = x.lo;
-          UEDATX = x.hi;
-          UEDATX = y.lo;
-          UEDATX = y.hi;
-          UEDATX = whl; // wheel scrolls
-          UEINTX = 0x3a;
+#ifdef DIAGONAL
+            count = count * -1;
+            if (count < 0){ // int8_t 
+            xlohi = (x.hi << 8) + x.lo; //writes x and y to an unsigned long variable. uint16 didnt have the headroom for addition.
+            ylohi = (y.hi << 8) + y.lo;
+            }
+            if (count > 0){
+            xlohi = (x.hi << 8) + x.lo + xlohi; //sums two polls, in theory reduces usb reports to 15 bit. i.e greater than 5 m/s
+            ylohi = (y.hi << 8) + y.lo + ylohi; // no you cant replace the code because the variables are different each loop.
+            x.lo = xlohi; //truncates the top 8 bits
+            x.hi = xlohi >> 8; //unreads x and y to a combined uint8
+            y.lo = ylohi;
+            y.hi = ylohi >> 8;
+            }
+#endif
+            UEDATX = btn_usb;
+#ifdef DIAGONAL
+            if ( count > 0 ){
+#endif
+            UEDATX = x.lo;
+            UEDATX = x.hi;
+            UEDATX = y.lo;
+            UEDATX = y.hi;
+#ifdef DIAGONAL
+            }
+#endif
+            UEDATX = whl; // wheel scrolls
+            UEINTX = 0x3a;
+            
         }
       }
 
