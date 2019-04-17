@@ -11,7 +11,7 @@ http://www.youtube.com/watch?v=nyb6M89QrWI
 
 https://www.overclock.net/forum/375-mice/1561041-reverse-engineering-3366-a-35.html
 
-features:
+<B> features: </B>
 
 software debouncing with variable debounce period
 
@@ -37,7 +37,7 @@ variable lift off distance (LOD) 1-3 mm and disable
 
 disable and enable sleep mode
 
-things it can't do.
+<B> things it can't do.</B>
 
 can't bind the same key twice without minor mods( could be added at some stage)
 
