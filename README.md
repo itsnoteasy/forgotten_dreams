@@ -37,6 +37,8 @@ variable lift off distance (LOD) 1-3 mm and disable
 
 disable and enable sleep mode
 
+wheel acceleration. (need a good encoder for this to be usable)
+
 <B> things it can't do.</B>
 
 can't bind the same key twice without minor mods( could be added at some stage)
