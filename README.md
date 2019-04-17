@@ -3,7 +3,7 @@ this is a fork of qsxcv's and ninox's bst pmw3360 libre mouse firmware. this is 
 It is not mentioned in the instructions in the youtube video but using optional 5k pullup resistors on each pin and 10k
  on both pins of the wheel encoder will extend switch life. 
  
-I created this fork because I wanted to experiment with 3 pin switches. Later on I added in ben buxtons fault tolerant encoder code. It is a work in progress so if you want reliability, grab the original firmware,
+I created this fork because I wanted to experiment with 3 pin switches(set/reset latch). Later on I added in ben buxtons fault tolerant encoder code. It is a work in progress so if you want reliability, grab the original firmware,
 as there are so many features is is difficult to test everything. 
 If you want to get in contact send a pm to gipetto in overclock.net forums.
 
